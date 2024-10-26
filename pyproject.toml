@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aave-lp-point-tracker"
+description = "Off-chain Aave liquidity provider point tracker"
+requires-python = ">=3.13"
+readme = "README.md"
+dynamic = ["version"]
+
+
+dependencies = ["subgrounds==1.9.1"]
+
+[project.optional-dependencies]
+dev = ["ipykernel==6.29.5"]
