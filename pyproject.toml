@@ -9,8 +9,13 @@ requires-python = ">=3.13"
 readme = "README.md"
 dynamic = ["version"]
 
-
-dependencies = ["subgrounds==1.9.1"]
+dependencies = ["python-dotenv==1.0.1", "requests==2.32.3"]
 
 [project.optional-dependencies]
-dev = ["ipykernel==6.29.5"]
+dev = [
+    "ipykernel==6.29.5",
+    "black==24.10.0",
+    "mypy==1.13.0",
+    "isort==5.13.2",
+    "flake8==7.1.1",
+]
