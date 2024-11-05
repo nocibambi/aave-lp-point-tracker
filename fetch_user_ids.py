@@ -1,9 +1,10 @@
-import json
 import logging
 import os
 
 import requests
 from dotenv import load_dotenv
+
+from utils import save_data
 
 load_dotenv()
 
@@ -46,8 +47,4 @@ while True:
     logger.debug({"user_ids": len(user_ids), "last_id": last_id})
     last_id = user_ids_batch[-1]
 
-
-os.makedirs("data", exist_ok=True)
-
-with open("data/user_ids.json", "w") as f:
-    json.dump(user_ids, f)
+save_data(user_ids, "user_ids")
