@@ -4,57 +4,46 @@ import os
 import requests
 from dotenv import load_dotenv
 
-from utils import save_data
+from utils import save_data, get_configs, date_str_to_posix
 
 load_dotenv()
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG)
 
+configs = get_configs()
+first_date_posix = date_str_to_posix(configs["first_date"], buffer="early")
+last_date_posix = date_str_to_posix(configs["last_date"], buffer="late")
 
-baseurl = "https://gateway.thegraph.com/api"
+first_date_posix, last_date_posix
+
+baseurl = configs["thegraph"]["baseurl"]
+subraph_id = configs["thegraph"]["subgraph_id"]
 api_key = os.environ["THEGRAPH_API_KEY"]
-subraph_id = "Cd2gEDVeqnjBn1hSeqFMitw8Q1iiyV9FYUZkLNRcL87g"
-
 
 url = f"{baseurl}/{api_key}/subgraphs/id/{subraph_id}"
 headers = {
     "Content-Type": "application/json",
 }
-
-
-query = """{{
-  reserves(orderBy: underlyingAsset, where: {{underlyingAsset_gt: "{preceding_address}"}}) {{
+query = """{
+  reserves(orderBy: underlyingAsset) {
     underlyingAsset
     symbol
     name
-  }}
-}}"""
-
-
-reserve_assets = []
-preceding_address = "0x"
-
-while True:
-    payload = {
-        "query": query.format(preceding_address=preceding_address),
-        "operationName": "Subgraphs",
-        "variables": {},
+    aToken {
+      id
     }
-
-    response = requests.post(url, json=payload, headers=headers)
-    reserve_assets_batch = [reserve for reserve in response.json()["data"]["reserves"]]
-    if not reserve_assets_batch:
-        break
-    reserve_assets += reserve_assets_batch
-    logger.debug(
-        {"reserve_assets": len(reserve_assets), "preceding_address": preceding_address}
-    )
-    preceding_address = reserve_assets_batch[-1]["underlyingAsset"]
+  }
+}"""
 
 
+payload = {
+    "query": query,
+    "operationName": "Subgraphs",
+    "variables": {},
+}
+
+response = requests.post(url, json=payload, headers=headers)
+reserve_assets = [reserve for reserve in response.json()["data"]["reserves"]]
 save_data(reserve_assets, "reserve_assets")
-
-preceding_address.upper()
-
-reserve_assets
+assert len(reserve_assets) <= 100, "Response might have more than 100 records..."
