@@ -2,13 +2,27 @@ import json
 import os
 from datetime import datetime, timedelta
 from typing import Literal
+import json
 
 from dotenv import load_dotenv
 
 load_dotenv()
 
 
-def save_data(data_to_save: dict | list, filename: str):
+def get_configs() -> dict:
+    with open("config.json", "r") as f:
+        return json.loads(f.read())
+
+
+def save_data(data_to_save: dict | list, filename: str) -> None:
+    """
+    Save data to a JSON file
+
+    data_to_save, dict | list: data to save
+    filename, str: filename
+
+    returns: None
+    """
     os.makedirs(os.environ["DATA_PATH"], exist_ok=True)
 
     with open(f"{os.environ['DATA_PATH']}/{filename}.json", "w") as f:
@@ -17,7 +31,7 @@ def save_data(data_to_save: dict | list, filename: str):
 
 def date_str_to_posix(
     date_str: str, buffer: Literal["early", "late"] | None = None
-) -> float:
+) -> int:
     """
     Convert a date string to a POSIX timestamp
 
@@ -30,8 +44,17 @@ def date_str_to_posix(
 
     match buffer:
         case "early":
-            return (dt - timedelta(hours=1)).timestamp()
+            return int((dt - timedelta(hours=1)).timestamp())
         case "late":
-            return (dt + timedelta(hours=1)).timestamp()
+            return int((dt + timedelta(hours=1)).timestamp())
         case _:
-            return dt.timestamp()
+            return int(dt.timestamp())
+
+
+def parse_query(query: str, *args) -> str:
+    query = query.replace("{", "{{").replace("}", "}}")
+
+    for arg in args:
+        query = query.replace(f"${arg}", f"{{{arg}}}")
+
+    return query
