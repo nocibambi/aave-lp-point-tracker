@@ -27,11 +27,11 @@ logging.basicConfig(level=logging.DEBUG)
 
 
 baseurl = "https://gateway.thegraph.com/api"
-api_key = os.environ["THEGRAPH_API_KEY"]
+
 subraph_id = "Cd2gEDVeqnjBn1hSeqFMitw8Q1iiyV9FYUZkLNRcL87g"
 
 
-url = f"{baseurl}/{api_key}/subgraphs/id/{subraph_id}"
+url = f"{baseurl}/{os.environ['THEGRAPH_API_KEY']}/subgraphs/id/{subraph_id}"
 headers = {
     "Content-Type": "application/json",
 }
@@ -96,7 +96,7 @@ user_reserve
 
 # Initialize a web3 instance
 w3 = Web3(
-    Web3.HTTPProvider("https://mainnet.infura.io/v3/f5b918fb4a9d4ba18bab6b1a4813a659")
+    Web3.HTTPProvider(f"https://mainnet.infura.io/v3/{os.environ['INFURA_API_KEY']}")
 )
 w3.is_connected()
 # Ethereum Aave V3 Pool
@@ -110,15 +110,59 @@ contract_abi = [
         "type": "function",
     }
 ]
-contract = w3.eth.contract(address=address, abi=contract_abi)
+pool_contract = w3.eth.contract(address=address, abi=contract_abi)
 
 # WETH reserve
-asset_address = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
-normalized_income = contract.functions.getReserveNormalizedIncome(asset_address).call()
+token_address = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
+atoken_address = "0x4d5F47FA6A74757f35C14fD3a6Ef8E3C9BC514E8"
+
+
+# TODO get abi of aToken implementation
+# at https://etherscan.io/address/0x7effd7b47bfd17e52fb7559d3f924201b9dbff3d#code
+
+url = "https://api.etherscan.io/api"
+params = {
+    "module": "contract",
+    "action": "getsourcecode",
+    "address": atoken_address,
+    "apikey": os.environ["ETHERSCAN_API_KEY"],
+}
+etherscan_atoken_respone = requests.get(url, params=params)
+atoken_implementation_address = etherscan_atoken_respone.json()["result"][0][
+    "Implementation"
+]
+# def get_asset_api(contract_address: str, api_key: str) -> list | dict:
+
+url = "https://api.etherscan.io/api"
+params = {
+    "module": "contract",
+    "action": "getabi",
+    "address": atoken_implementation_address,
+    "apikey": os.environ["ETHERSCAN_API_KEY"],
+}
+implementation_abi = requests.get(url, params=params).json()["result"]
+
+
+json.loads(implementation_abi)
+
+
+asset_contract = w3.eth.contract(address=atoken_address, abi=implementation_abi)
+
+balance_on_etherscan = asset_contract.functions.balanceOf(
+    w3.to_checksum_address("0xffb827fd3fd24103cc1a8b1db2f968369e75c00d")
+).call()
+balance_on_etherscan / 10**18
+
+# =============
+
+
+normalized_income = pool_contract.functions.getReserveNormalizedIncome(
+    token_address
+).call()
 
 print(normalized_income)
 
-# =============
+#
 
 ray_decimals = "1" + "0" * 27
 token_decimals = "1" + "0" * user_reserve["reserve"]["decimals"]
@@ -130,8 +174,4 @@ user_reserve
 actual_balance = (
     Decimal(user_reserve["scaledATokenBalance"]) / Decimal(token_decimals)
 ) * (Decimal(str(normalized_income)) / Decimal(ray_decimals))
-
-actual_value = 0.05295483
-
-1034140776328126615277731400
-1034140968364316492083327087
+actual_balance
