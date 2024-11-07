@@ -29,19 +29,13 @@ def save_data(data_to_save: dict | list, filename: str) -> None:
         json.dump(data_to_save, f, indent=4)
 
 
-def date_str_to_posix(
-    date_str: str, buffer: Literal["early", "late"] | None = None
+def date_str_to_datetime(date_str: str) -> datetime:
+    return datetime.strptime(f"{date_str}T00:00:00+00:00", "%Y-%m-%dT%H:%M:%S%z")
+
+
+def datetime_to_posix(
+    dt: datetime, buffer: Literal["early", "late"] | None = None
 ) -> int:
-    """
-    Convert a date string to a POSIX timestamp
-
-    date_str, str: date string in ISO format (YYYY-MM-DD)
-
-    returns: POSIX timestamp
-    """
-
-    dt = datetime.strptime(f"{date_str}T00:00:00+00:00", "%Y-%m-%dT%H:%M:%S%z")
-
     match buffer:
         case "early":
             return int((dt - timedelta(hours=1)).timestamp())

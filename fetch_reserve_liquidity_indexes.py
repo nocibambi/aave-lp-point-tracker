@@ -3,30 +3,26 @@ import os
 import json
 import requests
 from dotenv import load_dotenv
+from datetime import datetime, timedelta
+from collections import defaultdict
 
-from utils import save_data, get_configs, date_str_to_posix, parse_query
+from utils import (
+    save_data,
+    get_configs,
+    datetime_to_posix,
+    parse_query,
+    date_str_to_datetime,
+)
 
-load_dotenv()
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.DEBUG)
 
+load_dotenv()
 configs = get_configs()
-first_date_posix = date_str_to_posix(configs["first_date"], buffer="early")
-last_date_posix = date_str_to_posix(configs["last_date"], buffer="late")
-
-first_date_posix, last_date_posix
 
 baseurl = configs["thegraph"]["baseurl"]
 subraph_id = configs["thegraph"]["subgraph_id"]
 api_key = os.environ["THEGRAPH_API_KEY"]
-
-aave_pool_address_provider = configs["aave"]["ethereum_v3_main"][
-    "pool_address_provider"
-]
-
-with open(f"{os.environ['DATA_PATH']}/reserve_assets.json") as f:
-    reserves = json.load(f)
 
 url = f"{baseurl}/{api_key}/subgraphs/id/{subraph_id}"
 headers = {
@@ -34,52 +30,59 @@ headers = {
 }
 
 query = """{
-  reserve(id: "$id") {
-    underlyingAsset
-    symbol
-    paramsHistory(where: {timestamp_gt: $timestamp_gt, timestamp_lt: $timestamp_lt}) {
-      liquidityIndex
-      timestamp
+  reserveParamsHistoryItems(
+    where: {timestamp_gt: $timestamp_gt, timestamp_lte: $timestamp_lte}
+    orderBy: timestamp
+    orderDirection: asc
+  ) {
+    liquidityIndex
+    timestamp
+    reserve {
+      symbol
+      underlyingAsset
     }
   }
 }"""
+query_parsed = parse_query(query, "timestamp_gt", "timestamp_lte")
 
-query_parsed = parse_query(query, "id", "timestamp_gt", "timestamp_lt")
-print(query_parsed)
-
-reserve_liquidity_indexes: dict = {}
-for reserve in reserves:
-    reserve_asset = reserve["underlyingAsset"]
-    reserve_liquidity_indexes[reserve_asset] = []
-
-    while True:
-        payload = {
-            "query": query_parsed.format(
-                id=reserve_asset + aave_pool_address_provider,
-                timestamp_gt=first_date_posix,
-                timestamp_lt=last_date_posix,
-            ),
-            "operationName": "Subgraphs",
-            "variables": {},
-        }
-
-        response = requests.post(url, json=payload, headers=headers)
-        index_history_batch = response.json()["data"]["reserve"]["paramsHistory"]
-        reserve_liquidity_indexes[reserve_asset] += index_history_batch
-        if len(index_history_batch) < 100:
-            break
-        first_date_posix = index_history_batch[-1]["timestamp"]
-
-    logger.debug(
-        f"Fetched liquidity indexes for {reserve['symbol']}:\n"
-        + str(len(reserve_liquidity_indexes[reserve_asset]))
-    )
-
-save_data(reserve_liquidity_indexes, "reserve_liquidity_indexes")
-
-logger.debug(
-    {
-        reserve["symbol"]: len(reserve_liquidity_indexes[reserve["underlyingAsset"]])
-        for reserve in reserves
-    }
+first_date_posix = datetime_to_posix(
+    date_str_to_datetime(configs["first_date"]), buffer="early"
 )
+last_date_posix = datetime_to_posix(
+    date_str_to_datetime(configs["last_date"]) + timedelta(days=1), buffer="late"
+)
+
+reserve_liquidity_indexes: defaultdict = defaultdict(list)
+while True:
+    query_configured = query_parsed.format(
+        timestamp_gt=first_date_posix,
+        timestamp_lte=last_date_posix,
+    )
+    payload = {
+        "query": query_configured,
+        "operationName": "Subgraphs",
+        "variables": {},
+    }
+    response = requests.post(url, json=payload, headers=headers)
+    index_history_batch = response.json()["data"]["reserveParamsHistoryItems"]
+    for index in index_history_batch:
+        reserve_liquidity_indexes[index["reserve"]["symbol"]].append(
+            {
+                "timestamp": index["timestamp"],
+                "liquidityIndex": index["liquidityIndex"],
+            }
+        )
+    if len(index_history_batch) < 100:
+        break
+    logger.info(
+        first_date_posix,
+        last_date_posix,
+        len(index_history_batch),
+        sum(len(values) for values in reserve_liquidity_indexes.values()),
+    )
+    first_date_posix = index_history_batch[-1]["timestamp"]
+
+logger.info(
+    {reserve: len(indexes) for reserve, indexes in reserve_liquidity_indexes.items()}
+)
+save_data(reserve_liquidity_indexes, "reserve_liquidity_indexes")
