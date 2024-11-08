@@ -37,14 +37,14 @@ query = """
       reserve {
         underlyingAsset
         symbol
-      }      
+      }
     }
   }
 }"""
 query_parsed = subgraph.format_query(query, "id_gt", "timestamp_lte")
 
 last_date_posix = datetime_to_posix(date_str_to_datetime(configs["first_date"]))
-users_starting_balances = []
+starting_balances = []
 last_id = "0"
 while True:
     payload = {
@@ -53,11 +53,11 @@ while True:
         "variables": {},
     }
     response = requests.post(subgraph.url, json=payload, headers=subgraph.headers)
-    users_starting_balances_batch = response.json()["data"]["users"]
-    if not users_starting_balances_batch:
+    starting_balances_batch = response.json()["data"]["users"]
+    if not starting_balances_batch:
         break
-    users_starting_balances += users_starting_balances_batch
-    print({"users_starting_balances": len(users_starting_balances), "last_id": last_id})
-    last_id = users_starting_balances_batch[-1]["id"]
+    starting_balances += starting_balances_batch
+    print({"starting_balances": len(starting_balances), "last_id": last_id})
+    last_id = starting_balances_batch[-1]["id"]
 
-save_data(users_starting_balances, "users_starting_balances")
+save_data(starting_balances, "starting_balances")

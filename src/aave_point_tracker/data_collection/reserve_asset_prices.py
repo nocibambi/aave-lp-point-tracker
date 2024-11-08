@@ -42,7 +42,7 @@ params: dict[str, str | float] = {
     ),
 }
 
-reserves_asset_prices = {}
+reserve_asset_prices = {}
 for reserve in reserve_assets:
     logger.debug(f"Fetching prices for {reserve['symbol']}.")
 
@@ -67,6 +67,6 @@ for reserve in reserve_assets:
         ]
         for price in response.json()["prices"]
     ]
-    reserves_asset_prices[contract_address] = prices
+    reserve_asset_prices[contract_address] = prices
 
-save_data(reserves_asset_prices, "reserves_asset_prices")
+save_data(reserve_asset_prices, "reserve_asset_prices")

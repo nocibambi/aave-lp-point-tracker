@@ -43,7 +43,7 @@ last_date_posix = datetime_to_posix(
     date_str_to_datetime(configs["last_date"]) + timedelta(days=1), buffer="late"
 )
 
-reserve_liquidity_indexes: defaultdict = defaultdict(list)
+reserve_liquidity_index_histories: defaultdict = defaultdict(list)
 while True:
     query_configured = query_parsed.format(
         timestamp_gt=first_date_posix,
@@ -59,7 +59,7 @@ while True:
     )
     index_history_batch = response.json()["data"]["reserveParamsHistoryItems"]
     for index in index_history_batch:
-        reserve_liquidity_indexes[index["reserve"]["symbol"]].append(
+        reserve_liquidity_index_histories[index["reserve"]["underlyingAsset"]].append(
             {
                 "timestamp": index["timestamp"],
                 "liquidityIndex": index["liquidityIndex"],
@@ -67,15 +67,18 @@ while True:
         )
     if len(index_history_batch) < 100:
         break
-    logger.info(
+    logger.debug(
         first_date_posix,
         last_date_posix,
         len(index_history_batch),
-        sum(len(values) for values in reserve_liquidity_indexes.values()),
+        sum(len(values) for values in reserve_liquidity_index_histories.values()),
     )
     first_date_posix = index_history_batch[-1]["timestamp"]
 
-logger.info(
-    {reserve: len(indexes) for reserve, indexes in reserve_liquidity_indexes.items()}
+logger.debug(
+    {
+        reserve: len(indexes)
+        for reserve, indexes in reserve_liquidity_index_histories.items()
+    }
 )
-save_data(reserve_liquidity_indexes, "reserve_liquidity_indexes")
+save_data(reserve_liquidity_index_histories, "reserve_liquidity_index_histories")

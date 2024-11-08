@@ -44,7 +44,7 @@ query = """
 query_parsed = subgraph_helper.format_query(query, "timestamp_gte")
 
 first_timestamp = datetime_to_posix(date_str_to_datetime(configs["first_date"]))
-atoken_balance_history = []
+atoken_balance_histories = []
 while True:
     payload = {
         "query": query_parsed.format(timestamp_gte=first_timestamp),
@@ -54,16 +54,18 @@ while True:
     response = requests.post(
         subgraph_helper.url, json=payload, headers=subgraph_helper.headers
     )
-    atoken_balance_history_batch = response.json()["data"]["atokenBalanceHistoryItems"]
-    if not atoken_balance_history_batch:
+    atoken_balance_histories_batch = response.json()["data"][
+        "atokenBalanceHistoryItems"
+    ]
+    if not atoken_balance_histories_batch:
         break
-    atoken_balance_history += atoken_balance_history_batch
+    atoken_balance_histories += atoken_balance_histories_batch
     print(
         datetime.fromtimestamp(first_timestamp, tz=timezone.utc).strftime(
             "%Y-%m-%d %H:%M:%S"
         ),
-        f"- {len(atoken_balance_history)}",
+        f"- {len(atoken_balance_histories)}",
     )
-    first_timestamp = atoken_balance_history_batch[-1]["timestamp"] + 1
+    first_timestamp = atoken_balance_histories_batch[-1]["timestamp"] + 1
 
-save_data(atoken_balance_history, "atoken_balance_history")
+save_data(atoken_balance_histories, "atoken_balance_histories")
