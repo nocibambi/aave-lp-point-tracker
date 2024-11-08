@@ -4,11 +4,14 @@ import os
 import time
 from datetime import datetime, timedelta, timezone
 
-import pandas as pd
 import requests
 from dotenv import load_dotenv
 
-from aave_point_tracker.utils.utils import datetime_to_posix, save_data
+from aave_point_tracker.utils.utils import (
+    datetime_to_posix,
+    save_data,
+    date_str_to_datetime,
+)
 
 load_dotenv()
 
@@ -30,17 +33,14 @@ headers = {
 
 params: dict[str, str | float] = {
     "vs_currency": "usd",
-    "from": datetime_to_posix("2024-09-01", buffer="early"),
+    "from": datetime_to_posix(date_str_to_datetime("2024-09-01"), buffer="early"),
     # Coingecko requires a pro plan to set the interval
     # but returns daily data points if the date range is greater than 90 days
     "to": datetime_to_posix(
-        (datetime.strptime("2024-09-01", "%Y-%m-%d") + timedelta(days=91)).strftime(
-            "%Y-%m-%d"
-        ),
+        (datetime.strptime("2024-09-01", "%Y-%m-%d") + timedelta(days=91)),
         buffer="late",
     ),
 }
-
 
 reserves_asset_prices = {}
 for reserve in reserve_assets:
@@ -56,7 +56,7 @@ for reserve in reserve_assets:
             break
         time.sleep(delay)
         delay *= 2
-        logger.debug(f"Delaying for {delay} second...")
+        logger.debug(f"Delaying for {delay} seconds...")
 
     prices = [
         [
@@ -67,26 +67,6 @@ for reserve in reserve_assets:
         ]
         for price in response.json()["prices"]
     ]
-    reserves_asset_prices[reserve["symbol"]] = prices
+    reserves_asset_prices[contract_address] = prices
 
 save_data(reserves_asset_prices, "reserves_asset_prices")
-
-
-pd.DataFrame.from_dict(reserves_asset_prices)
-pd.DataFrame.from_records(
-    reserves_asset_prices["WETH"], columns=["date", "price"]
-).set_index("date")
-
-{asset: len(reserves_asset_prices[asset]) for asset in reserves_asset_prices}
-
-len(response.json()["prices"])
-
-[
-    [
-        datetime.fromtimestamp(price[0] / 1000, tz=timezone.utc).strftime(
-            "%Y-%m-%d %H:%M:%S"
-        ),
-        price[1],
-    ]
-    for price in prices
-]
