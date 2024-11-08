@@ -1,6 +1,6 @@
-from utils import load_configs
-
 import os
+
+from utils import load_configs
 
 configs = load_configs()
 

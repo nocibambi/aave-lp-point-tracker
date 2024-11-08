@@ -8,7 +8,7 @@ import pandas as pd
 import requests
 from dotenv import load_dotenv
 
-from utils import datetime_to_posix, save_data
+from utils.utils import datetime_to_posix, save_data
 
 load_dotenv()
 
@@ -43,7 +43,6 @@ params: dict[str, str | float] = {
 
 
 reserves_asset_prices = {}
-
 for reserve in reserve_assets:
     logger.debug(f"Fetching prices for {reserve['symbol']}.")
 
@@ -68,7 +67,6 @@ for reserve in reserve_assets:
         ]
         for price in response.json()["prices"]
     ]
-
     reserves_asset_prices[reserve["symbol"]] = prices
 
 save_data(reserves_asset_prices, "reserves_asset_prices")

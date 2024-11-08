@@ -4,8 +4,8 @@ from datetime import datetime, timezone
 import requests
 from dotenv import load_dotenv
 
-from subgraph_utils import SubgraphHelper
-from utils import date_str_to_datetime, datetime_to_posix, load_configs, save_data
+from utils.subgraph_helpers import SubgraphHelper
+from utils.utils import date_str_to_datetime, datetime_to_posix, load_configs, save_data
 
 logger = logging.getLogger(__name__)
 load_dotenv()

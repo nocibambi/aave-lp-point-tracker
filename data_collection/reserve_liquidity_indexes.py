@@ -1,19 +1,12 @@
 import logging
-import os
-import json
+from collections import defaultdict
+from datetime import timedelta
+
 import requests
 from dotenv import load_dotenv
-from datetime import datetime, timedelta
-from collections import defaultdict
 
-from utils import (
-    save_data,
-    load_configs,
-    datetime_to_posix,
-    date_str_to_datetime,
-)
-
-from subgraph_utils import SubgraphHelper
+from utils.subgraph_helpers import SubgraphHelper
+from utils.utils import date_str_to_datetime, datetime_to_posix, load_configs, save_data
 
 subgraph_helper = SubgraphHelper()
 

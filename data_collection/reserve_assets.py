@@ -1,10 +1,11 @@
 import logging
 from datetime import timedelta
-from subgraph_utils import SubgraphHelper
+
 import requests
 from dotenv import load_dotenv
 
-from utils import save_data, load_configs, date_str_to_datetime, datetime_to_posix
+from utils.subgraph_helpers import SubgraphHelper
+from utils.utils import date_str_to_datetime, datetime_to_posix, load_configs, save_data
 
 load_dotenv()
 

@@ -18,7 +18,7 @@ from dotenv import load_dotenv
 from web3 import Web3, eth
 from web3.contract import Contract
 
-from utils import datetime_to_posix, save_data
+from utils.utils import datetime_to_posix, save_data
 
 load_dotenv()
 
