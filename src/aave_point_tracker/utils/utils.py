@@ -2,6 +2,8 @@ import json
 import os
 from datetime import datetime, timedelta
 from typing import Literal
+from importlib.resources import files
+from pathlib import Path
 
 from dotenv import load_dotenv
 
@@ -9,8 +11,7 @@ load_dotenv()
 
 
 def load_configs() -> dict:
-    with open("config.json", "r") as f:
-        return json.loads(f.read())
+    return json.loads(files("aave_point_tracker").joinpath("config.json").read_text())
 
 
 def save_data(data_to_save: dict | list, filename: str) -> None:
@@ -24,12 +25,12 @@ def save_data(data_to_save: dict | list, filename: str) -> None:
     """
     os.makedirs(os.environ["DATA_PATH"], exist_ok=True)
 
-    with open(f"{os.environ['DATA_PATH']}/{filename}.json", "w") as f:
+    with open(os.path.join(os.environ["DATA_PATH"], f"{filename}.json"), "w") as f:
         json.dump(data_to_save, f, indent=4)
 
 
 def load_data(filename: str) -> dict | list:
-    with open(f"{os.environ['DATA_PATH']}/{filename}.json", "r") as f:
+    with open(Path(os.environ["DATA_PATH"], f"{filename}.json"), "r") as f:
         return json.load(f)
 
 
