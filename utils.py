@@ -2,14 +2,13 @@ import json
 import os
 from datetime import datetime, timedelta
 from typing import Literal
-import json
 
 from dotenv import load_dotenv
 
 load_dotenv()
 
 
-def get_configs() -> dict:
+def load_configs() -> dict:
     with open("config.json", "r") as f:
         return json.loads(f.read())
 
@@ -43,12 +42,3 @@ def datetime_to_posix(
             return int((dt + timedelta(hours=1)).timestamp())
         case _:
             return int(dt.timestamp())
-
-
-def parse_query(query: str, *args) -> str:
-    query = query.replace("{", "{{").replace("}", "}}")
-
-    for arg in args:
-        query = query.replace(f"${arg}", f"{{{arg}}}")
-
-    return query

@@ -8,26 +8,19 @@ from collections import defaultdict
 
 from utils import (
     save_data,
-    get_configs,
+    load_configs,
     datetime_to_posix,
-    parse_query,
     date_str_to_datetime,
 )
 
+from subgraph_utils import SubgraphHelper
+
+subgraph_helper = SubgraphHelper()
 
 logger = logging.getLogger(__name__)
 
 load_dotenv()
-configs = get_configs()
-
-baseurl = configs["thegraph"]["baseurl"]
-subraph_id = configs["thegraph"]["subgraph_id"]
-api_key = os.environ["THEGRAPH_API_KEY"]
-
-url = f"{baseurl}/{api_key}/subgraphs/id/{subraph_id}"
-headers = {
-    "Content-Type": "application/json",
-}
+configs = load_configs()
 
 query = """{
   reserveParamsHistoryItems(
@@ -43,7 +36,7 @@ query = """{
     }
   }
 }"""
-query_parsed = parse_query(query, "timestamp_gt", "timestamp_lte")
+query_parsed = subgraph_helper.format_query(query, "timestamp_gt", "timestamp_lte")
 
 first_date_posix = datetime_to_posix(
     date_str_to_datetime(configs["first_date"]), buffer="early"
@@ -63,7 +56,9 @@ while True:
         "operationName": "Subgraphs",
         "variables": {},
     }
-    response = requests.post(url, json=payload, headers=headers)
+    response = requests.post(
+        subgraph_helper.url, json=payload, headers=subgraph_helper.headers
+    )
     index_history_batch = response.json()["data"]["reserveParamsHistoryItems"]
     for index in index_history_batch:
         reserve_liquidity_indexes[index["reserve"]["symbol"]].append(
