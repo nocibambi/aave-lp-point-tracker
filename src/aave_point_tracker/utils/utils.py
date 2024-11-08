@@ -28,6 +28,11 @@ def save_data(data_to_save: dict | list, filename: str) -> None:
         json.dump(data_to_save, f, indent=4)
 
 
+def load_data(filename: str) -> dict | list:
+    with open(f"{os.environ['DATA_PATH']}/{filename}.json", "r") as f:
+        return json.load(f)
+
+
 def date_str_to_datetime(date_str: str) -> datetime:
     return datetime.strptime(f"{date_str}T00:00:00+00:00", "%Y-%m-%dT%H:%M:%S%z")
 

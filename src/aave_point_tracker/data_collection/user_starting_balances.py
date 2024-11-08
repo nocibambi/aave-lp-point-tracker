@@ -3,8 +3,13 @@ import logging
 import requests
 from dotenv import load_dotenv
 
-from utils.subgraph_helpers import SubgraphHelper
-from utils.utils import date_str_to_datetime, datetime_to_posix, load_configs, save_data
+from aave_point_tracker.utils.subgraph_helpers import SubgraphHelper
+from aave_point_tracker.utils.utils import (
+    date_str_to_datetime,
+    datetime_to_posix,
+    load_configs,
+    save_data,
+)
 
 logger = logging.getLogger(__name__)
 load_dotenv()

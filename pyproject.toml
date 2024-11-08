@@ -3,8 +3,9 @@ requires = ["setuptools", "setuptools-scm"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "aave-lp-point-tracker"
+name = "aave-point-tracker"
 description = "Off-chain Aave liquidity provider point tracker"
+authors = [{ name = "András Novoszáth", email = "nocibambi@gmail.com" }]
 requires-python = ">=3.13"
 readme = "README.md"
 dynamic = ["version"]

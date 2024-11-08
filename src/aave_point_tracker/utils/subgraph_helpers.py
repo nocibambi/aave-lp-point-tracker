@@ -1,6 +1,6 @@
 import os
 
-from utils import load_configs
+from aave_point_tracker.utils.utils import load_configs
 
 configs = load_configs()
 

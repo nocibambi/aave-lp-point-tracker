@@ -4,7 +4,7 @@ import os
 import requests
 from dotenv import load_dotenv
 
-from utils import save_data
+from aave_point_tracker.utils import save_data
 
 load_dotenv()
 

@@ -8,7 +8,7 @@ import pandas as pd
 import requests
 from dotenv import load_dotenv
 
-from utils.utils import datetime_to_posix, save_data
+from aave_point_tracker.utils.utils import datetime_to_posix, save_data
 
 load_dotenv()
 
