@@ -9,7 +9,7 @@ requires-python = ">=3.13"
 readme = "README.md"
 dynamic = ["version"]
 
-dependencies = ["python-dotenv==1.0.1", "requests==2.32.3"]
+dependencies = ["python-dotenv==1.0.1", "requests==2.32.3", "pandas==2.2.3"]
 
 [project.optional-dependencies]
 dev = [
