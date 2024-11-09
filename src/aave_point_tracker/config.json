@@ -9,5 +9,6 @@
     "ethereum_v3_main": {
       "pool_address_provider": "0x2f39d218133afab8f2b819b1066c7e434ad94e9e"
     }
-  }
+  },
+  "ray_decimals": 27
 }
