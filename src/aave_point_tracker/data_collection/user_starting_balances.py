@@ -34,6 +34,10 @@ query = """
         currentATokenBalance
         index
       }
+      reserve {
+        underlyingAsset
+        symbol
+      }      
     }
   }
 }"""
