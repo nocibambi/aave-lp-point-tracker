@@ -2,7 +2,7 @@ import json
 import logging
 import os
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 import requests
 from dotenv import load_dotenv
@@ -34,11 +34,8 @@ headers = {
 params: dict[str, str | float] = {
     "vs_currency": "usd",
     "from": datetime_to_posix(date_str_to_datetime("2024-09-01"), buffer="early"),
-    # Coingecko requires a pro plan to set the interval
-    # but returns daily data points if the date range is greater than 90 days
     "to": datetime_to_posix(
-        (datetime.strptime("2024-09-01", "%Y-%m-%d") + timedelta(days=91)),
-        buffer="late",
+        (datetime.strptime("2024-09-30", "%Y-%m-%d")), buffer="late"
     ),
 }
 
