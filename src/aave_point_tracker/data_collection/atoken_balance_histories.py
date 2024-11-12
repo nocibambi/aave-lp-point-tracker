@@ -68,4 +68,4 @@ while True:
     )
     first_timestamp = atoken_balance_histories_batch[-1]["timestamp"] + 1
 
-save_data(atoken_balance_histories, "atoken_balance_histories")
+save_data(atoken_balance_histories, "atoken_balance_histories", data_layer="raw")

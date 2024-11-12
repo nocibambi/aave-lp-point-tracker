@@ -81,4 +81,8 @@ logger.debug(
         for reserve, indexes in reserve_liquidity_index_histories.items()
     }
 )
-save_data(reserve_liquidity_index_histories, "reserve_liquidity_index_histories")
+save_data(
+    reserve_liquidity_index_histories,
+    "reserve_liquidity_index_histories",
+    data_layer="raw",
+)

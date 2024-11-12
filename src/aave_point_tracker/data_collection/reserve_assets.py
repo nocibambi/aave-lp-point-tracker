@@ -52,4 +52,4 @@ response = requests.post(
 )
 reserve_assets = [reserve for reserve in response.json()["data"]["reserves"]]
 assert len(reserve_assets) <= 100, "Response might have more than 100 records..."
-save_data(reserve_assets, "reserve_assets")
+save_data(reserve_assets, "reserve_assets", data_layer="raw")

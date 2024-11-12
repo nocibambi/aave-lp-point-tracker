@@ -2,7 +2,7 @@ import json
 import logging
 import os
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 import requests
 from dotenv import load_dotenv
@@ -11,9 +11,14 @@ from aave_point_tracker.utils.utils import (
     datetime_to_posix,
     save_data,
     date_str_to_datetime,
+    load_configs,
 )
 
 load_dotenv()
+configs = load_configs()
+
+FIRST_DATE: str = configs["first_date"]
+LAST_DATE: str = configs["last_date"]
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG)
@@ -33,9 +38,12 @@ headers = {
 
 params: dict[str, str | float] = {
     "vs_currency": "usd",
-    "from": datetime_to_posix(date_str_to_datetime("2024-09-01"), buffer="early"),
+    "from": datetime_to_posix(
+        date_str_to_datetime(FIRST_DATE).astimezone(timezone.utc), buffer="early"
+    ),
     "to": datetime_to_posix(
-        (datetime.strptime("2024-09-30", "%Y-%m-%d")), buffer="late"
+        date_str_to_datetime(LAST_DATE).astimezone(timezone.utc) + timedelta(days=1),
+        buffer="late",
     ),
 }
 
@@ -66,4 +74,4 @@ for reserve in reserve_assets:
     ]
     reserve_asset_prices[contract_address] = prices
 
-save_data(reserve_asset_prices, "reserve_asset_prices")
+save_data(reserve_asset_prices, "reserve_asset_prices", data_layer="raw")

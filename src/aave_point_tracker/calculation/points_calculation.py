@@ -21,20 +21,18 @@ decimal_context.traps[FloatOperation] = True
 
 web3 = Web3()
 
-starting_balances: list[dict] = load_data("starting_balances")
-reserve_assets: list[dict] = load_data("reserve_assets")
-reserve_asset_prices: dict[str, list[dict]] = load_data("reserve_asset_prices")
+########## LOAD DATA ##########
+
+starting_balances: list[dict] = load_data("starting_balances", data_layer="raw")
+reserve_assets: list[dict] = load_data("reserve_assets", data_layer="raw")
+reserve_asset_prices: dict[str, list[dict]] = load_data("reserve_asset_prices", data_layer="raw"))
 reserve_liquidity_index_histories: dict[str, list[dict]] = load_data(
-    "reserve_liquidity_index_histories"
+    "reserve_liquidity_index_histories", data_layer="raw"
 )
-atoken_balance_histories: list[dict] = load_data("atoken_balance_histories")
+atoken_balance_histories: list[dict] = load_data("atoken_balance_histories", data_layer="raw")
+aave_addresses = load_data("aave_addresses", data_layer="raw")
 
-aave_addresses_url = (
-    "https://raw.githubusercontent.com/bgd-labs/aave-address-book/main/safe.csv"
-)
-response = requests.get(aave_addresses_url)
-aave_addresses = [record.split(",")[0] for record in response.text.split("\n")[1:]]
-
+########## PREPARE DATA ##########
 
 user_starting_balances: dict[str, list] = {}
 for starting_balance in starting_balances:
