@@ -1,5 +1,3 @@
-from datetime import datetime, timezone
-
 from web3 import Web3
 import logging
 from aave_point_tracker.utils.utils import load_data, save_data
@@ -9,7 +7,7 @@ web3_client = Web3()
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG)
 
-########## LOAD DATA ##########
+# ########## LOAD DATA ##########
 
 starting_balances: list[dict] = load_data("starting_balances", data_layer="raw")
 reserve_assets: list[dict] = load_data("reserve_assets", data_layer="raw")
@@ -24,7 +22,8 @@ atoken_balance_histories: list[dict] = load_data(
 )
 aave_addresses: list[str] = load_data("aave_addresses", data_layer="raw")
 
-########## PREPARE DATA ##########
+# ########## PREPARE DATA ##########
+
 
 user_starting_balances: dict[str, list] = {}
 for starting_balance in starting_balances:
@@ -40,15 +39,15 @@ for starting_balance in starting_balances:
         ]
         if scaled_atoken_balance == "0":
             continue
-        if user_id not in user_starting_balances:
-            user_starting_balances[user_id] = []
         token_id: str = web3_client.to_checksum_address(
             reserve["reserve"]["underlyingAsset"]
         )
-        logger.debug(
-            len(user_starting_balances), user_id, token_id, scaled_atoken_balance
-        )
+        if user_id not in user_starting_balances:
+            user_starting_balances[user_id] = []
         user_starting_balances[user_id].append([token_id, scaled_atoken_balance])
+logger.debug(
+    f"number of starting balances:  {len(user_starting_balances)}",
+)
 save_data(user_starting_balances, "user_starting_balances", data_layer="prepared")
 
 liquidity_indexes: dict[str, list] = {}
@@ -92,12 +91,7 @@ for history_item in atoken_balance_histories:
             history_item["scaledATokenBalance"],
         ]
     )
-    logger.debug(
-        {
-            "user_id": user_id,
-            "number of records": len(user_atoken_balance_histories[user_id]),
-        }
-    )
+logger.debug(f"Number of user aToken histories: {len(user_atoken_balance_histories)}")
 save_data(
     user_atoken_balance_histories,
     "user_atoken_balance_histories",

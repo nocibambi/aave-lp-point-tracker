@@ -70,14 +70,6 @@ while True:
     if not atoken_balance_histories_batch:
         break
     atoken_balance_histories += atoken_balance_histories_batch
-    logger.debug(
-        {
-            "from": datetime.fromtimestamp(first_timestamp, tz=timezone.utc).strftime(
-                "%Y-%m-%d %H:%M:%S"
-            ),
-            "collected": f"- {len(atoken_balance_histories)}",
-        }
-    )
     first_timestamp = atoken_balance_histories_batch[-1]["timestamp"] + 1
-
+logger.debug({"collected": f"- {len(atoken_balance_histories)}"})
 save_data(atoken_balance_histories, "atoken_balance_histories", data_layer="raw")

@@ -73,16 +73,6 @@ while True:
         )
     if len(index_history_batch) < 100:
         break
-    logger.debug(
-        {
-            "first_date_posix": first_date_posix,
-            "last_date_posix": last_date_posix,
-            "batch size": len(index_history_batch),
-            "total": sum(
-                len(values) for values in reserve_liquidity_index_histories.values()
-            ),
-        }
-    )
     first_date_posix = index_history_batch[-1]["timestamp"]
 
 logger.debug(
