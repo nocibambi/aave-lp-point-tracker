@@ -43,7 +43,7 @@ def print_user_reserve_id(user_id, asset):
     logger.debug(user_reserve_id)
 
 
-user_id = "0xb7884a472Caeb66Fc65d1A77113dE9809D5DCA0f"
+user_id = "0x9B68a7d57A26F6F5fDCee1cB7aa39688CE34048B"
 starting_balances: list[list] = user_starting_balances[user_id]
 balance_histories: list[list[str]] = user_atoken_balance_histories[user_id]
 
@@ -51,9 +51,9 @@ starting_assets = set([balance[0] for balance in starting_balances])
 updated_assets = set([record[1] for record in balance_histories])
 
 assets_held: set = starting_assets | updated_assets
+assets_held
 
-# asset: str = "0x5f98805A4E8be255a32880FDeC7F6728C6568bA0"
-asset: str = "0x514910771AF9Ca656af840dff83E8264EcF986CA"
+asset: str = "0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9"
 
 print_user_reserve_id(user_id, asset)
 
@@ -77,7 +77,6 @@ starting_balance = pd.DataFrame(
     data=[
         {
             "date": period_dates[0],
-            "asset": asset,
             "balance": (
                 0
                 if asset not in starting_assets
@@ -87,26 +86,20 @@ starting_balance = pd.DataFrame(
         }
     ]
 )
-
 balance_updates = pd.DataFrame(
     [
         {
-            # "date": record[0],
             "date": datetime.fromtimestamp(record[0], tz=timezone.utc),
-            "asset": asset,
             "balance": record[2],
             "day_fraction": day_fraction(record[0]),
         }
         for record in list(filter(lambda record: record[1] == asset, balance_histories))
     ]
 )
-
-
 closing_balance = pd.DataFrame(
     data=[
         {
             "date": period_dates[-1] + pd.Timedelta(days=1),
-            "asset": asset,
             "balance": balance_updates.sort_values("date")["balance"].iloc[-1],
             "day_fraction": 0,
         }
@@ -117,7 +110,6 @@ balance_history = (
     .astype(
         {
             "date": "datetime64[ns, UTC]",
-            "asset": str,
             "balance": str,
             "day_fraction": float,
         }
@@ -127,7 +119,26 @@ balance_history = (
 balance_history
 
 
-def interpolate_decimals(decimal_series: pd.DataFrame) -> pd.Series:
+def median_decimals(index_history: pd.Series) -> Decimal:
+    index_history = index_history.sort_index()
+    n_records = len(index_history)
+
+    if n_records == 0:
+        return None
+
+    if n_records % 2 == 0:
+        return Decimal(
+            (
+                index_history.iloc[n_records // 2 - 1]
+                + index_history.iloc[len(index_history) // 2]
+            )
+            / Decimal(2)
+        )
+    else:
+        return Decimal(index_history.iloc[(n_records + 1) // 2 - 1])
+
+
+def interpolate_decimals(decimal_series: pd.Series) -> pd.Series:
     decimal_series = decimal_series.sort_index()
     indexes_w_nan = decimal_series[decimal_series.isna().values].index
     indexes_w_vals = decimal_series[~decimal_series.isna().values].index
@@ -178,7 +189,7 @@ liquidity_index_resampled = (
         "1d",
         on="date",
     )
-    .median()
+    .apply(median_decimals)
     .apply(interpolate_decimals)
 )
 liquidity_index_resampled
@@ -187,30 +198,35 @@ price_resampled = (
     pd.DataFrame(asset_prices[asset], columns=["date", "price"])
     .pipe(
         lambda x: x.assign(
-            date=pd.to_datetime(x["date"], utc=True, format="%Y-%m-%d %H:%M:%S"),
+            date=pd.to_datetime(x["date"], utc=True, unit="ms"),
             price=x["price"].apply(lambda x: Decimal(str(x))),
         )
     )
     .resample("1h", on="date")
-    .median()
+    .apply(median_decimals)
     .sort_index()
     .pipe(lambda x: x.loc[x.index.isin(period_dates), :])
 )
 price_resampled
 
-pd.merge(
-    price_resampled,
-    liquidity_index_resampled,
-    how="outer",
-    left_index=True,
-    right_index=True,
+reserve_daily_points = (
+    balance_history.join(liquidity_index_resampled, how="outer")
+    .join(price_resampled, how="outer")
+    .pipe(
+        lambda x: x.assign(
+            balance=x["balance"].ffill(),
+            liquidity_index=x["liquidity_index"].ffill(),
+            price=x["price"].ffill(),
+            day_fraction=x["day_fraction"]
+            .fillna(0)
+            .diff()
+            .pipe(lambda x: x.add(x.lt(0).mul(1)))
+            .shift(-1)
+            .pipe(lambda x: x.add(x.mul(-1).add(1).floordiv(1))),
+        )
+    )
 )
-
-balance_history.join(liquidity_index_resampled, how="outer").join(
-    price_resampled, how="outer"
-)
-
-balance_history
+reserve_daily_points
 
 
 # balance
@@ -226,25 +242,30 @@ balance_history
 #         Decimal(liquidity_index) / Decimal(10**RAY_DECIMALS)
 #     )
 
-# def get_user_reserve_stats(user_starting_balances, user_atoken_balance_histories):
-#     return pd.DataFrame(
-#         sorted(
-#             [
-#                 [
-#                     user,
-#                     (
-#                         len(user_starting_balances[user])
-#                         if user in user_starting_balances
-#                         else 0
-#                     ),
-#                     len(set(record[1] for record in balance_history)),
-#                     len(balance_history),
-#                 ]
-#                 for user, balance_history in user_atoken_balance_histories.items()
-#             ],
-#             key=lambda user: user[3],
-#             reverse=True,
-#         ),
-#         columns=["user", "starting assets", "updated assets", "updates"],
-#     )
-# get_user_reserve_stats(user_starting_balances, user_atoken_balance_histories).tail(30)
+
+def get_user_reserve_stats(user_starting_balances, user_atoken_balance_histories):
+    return pd.DataFrame(
+        sorted(
+            [
+                [
+                    user,
+                    (
+                        len(user_starting_balances[user])
+                        if user in user_starting_balances
+                        else 0
+                    ),
+                    len(set(record[1] for record in balance_history)),
+                    len(balance_history),
+                ]
+                for user, balance_history in user_atoken_balance_histories.items()
+            ],
+            key=lambda user: user[3],
+            reverse=True,
+        ),
+        columns=["user", "starting assets", "updated assets", "updates"],
+    )
+
+
+get_user_reserve_stats(user_starting_balances, user_atoken_balance_histories).pipe(
+    lambda x: x[x["updates"].gt(5) & x["starting assets"].gt(0)]
+).tail(10)
