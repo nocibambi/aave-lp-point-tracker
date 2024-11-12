@@ -1,10 +1,11 @@
-from decimal import Decimal, getcontext, FloatOperation
-from datetime import datetime, timezone
-from aave_point_tracker.utils.utils import load_data, load_configs
+from datetime import timezone, datetime
+from decimal import Decimal, FloatOperation, getcontext
+
 import pandas as pd
-import requests
-from web3 import Web3
 import pandera
+from web3 import Web3
+
+from aave_point_tracker.utils.utils import load_configs, load_data
 
 configs = load_configs()
 RAY_DECIMALS: int = configs["ray_decimals"]
@@ -12,8 +13,7 @@ FIRST_DATE: str = configs["first_date"]
 LAST_DATE: str = configs["last_date"]
 
 
-class DecimalSeries(pandera.SeriesSchema):
-    dtype = Decimal
+DecimalSeriesSchema = pandera.SeriesSchema(Decimal)
 
 
 decimal_context = getcontext()
@@ -30,12 +30,12 @@ user_atoken_balance_histories = load_data(
     "user_atoken_balance_histories", data_layer="prepared"
 )
 
-############################# USER CALCULATION #############################
+# ############################ USER CALCULATION #############################
 
 
 def print_user_reserve_id(user_id, asset):
     user_reserve_id = (
-        user_id + asset + "0x2f39d218133afab8f2b819b1066c7e434ad94e9e"
+        user_id + asset + configs["aave"]["ethereum_v3_main"]["pool_address_provider"]
     ).lower()
     print(user_reserve_id)
 
@@ -62,8 +62,16 @@ period_dates = pd.date_range(
 )
 period_dates
 
-starting_balance = (
-    pd.Series(
+
+def day_fraction(timestamp: float) -> float:
+    dt = datetime.fromtimestamp(int(timestamp), tz=timezone.utc)
+    return (dt - datetime.combine(dt, dt.min.time(), tzinfo=dt.tzinfo)).seconds / (
+        24 * 60 * 60
+    )
+
+
+starting_balance = pd.DataFrame(
+    data=[
         {
             "date": period_dates[0],
             "asset": asset,
@@ -73,61 +81,50 @@ starting_balance = (
                 else next(filter(lambda x: x[0] == asset, starting_balances))[1]
             ),
             "day_fraction": 0,
-            "liquidity_index": None,
-            "price": None,
         }
-    )
-    .to_frame()
-    .T
+    ]
 )
-balance_updates = pd.DataFrame.from_records(
+
+balance_updates = pd.DataFrame(
     [
         {
-            "date": record[0],
+            # "date": record[0],
+            "date": datetime.fromtimestamp(record[0], tz=timezone.utc),
             "asset": asset,
             "balance": record[2],
-            "day_fraction": 0,
-            "liquidity_index": None,
-            "price": None,
+            "day_fraction": day_fraction(record[0]),
         }
         for record in list(filter(lambda record: record[1] == asset, balance_histories))
     ]
 )
+
+
 closing_balance = pd.DataFrame(
     data=[
         {
-            "date": period_dates[-1],
+            "date": period_dates[-1] + pd.Timedelta(days=1),
             "asset": asset,
             "balance": balance_updates.sort_values("date")["balance"].iloc[-1],
             "day_fraction": 0,
-            "liquidity_index": None,
-            "price": None,
         }
     ]
 )
-balance_history = pd.concat([starting_balance, balance_updates, closing_balance])
+balance_history = (
+    pd.concat([starting_balance, balance_updates, closing_balance])
+    .astype(
+        {
+            "date": "datetime64[ns, UTC]",
+            "asset": str,
+            "balance": str,
+            "day_fraction": float,
+        }
+    )
+    .set_index("date")
+)
+balance_history
 
 
-def median_decimals(index_history: DecimalSeries) -> Decimal:
-    index_history = index_history.sort_index()
-    n_records = len(index_history)
-
-    if n_records == 0:
-        return None
-
-    if n_records % 2 == 0:
-        return Decimal(
-            (
-                index_history.iloc[n_records // 2 - 1]
-                + index_history.iloc[len(index_history) // 2]
-            )
-            / Decimal(2)
-        )
-    else:
-        return Decimal(index_history.iloc[(n_records + 1) // 2 - 1])
-
-
-def interpolate_decimals(decimal_series: DecimalSeries) -> DecimalSeries:
+def interpolate_decimals(decimal_series: pd.DataFrame) -> pd.Series:
     decimal_series = decimal_series.sort_index()
     indexes_w_nan = decimal_series[decimal_series.isna().values].index
     indexes_w_vals = decimal_series[~decimal_series.isna().values].index
@@ -161,27 +158,60 @@ liquidity_index_resampled = (
         pd.DataFrame(liquidity_indexes[asset], columns=["date", "liquidity_index"])
         .pipe(
             lambda x: x.assign(
-                date=pd.to_datetime(x["date"], utc=True, format="%Y-%m-%d %H:%M:%S"),
+                date=datetime.fromtimestamp(x["date"], tz=timezone.utc),
+                # date=pd.to_datetime(x["date"], utc=True, format="%Y-%m-%d %H:%M:%S"),
                 liquidity_index=x["liquidity_index"].apply(Decimal),
             )
         )
         .pipe(
             lambda x: x.loc[
                 (x["date"] >= pd.to_datetime(FIRST_DATE, utc=True, format="%Y-%m-%d"))
-                & (x["date"] <= pd.to_datetime(LAST_DATE, utc=True, format="%Y-%m-%d"))
+                & (
+                    x["date"]
+                    <= pd.to_datetime(LAST_DATE, utc=True, format="%Y-%m-%d")
+                    + pd.Timedelta(days=1)
+                )
             ]
         )
         .resample(
-            "1h",
+            "1d",
             on="date",
         )
     )
-    .apply(median_decimals)
+    .median()
     .apply(interpolate_decimals)
 )
 liquidity_index_resampled
 
-asset_prices[asset]
+price_resampled = (
+    pd.DataFrame(asset_prices[asset], columns=["date", "price"])
+    .pipe(
+        lambda x: x.assign(
+            date=pd.to_datetime(x["date"], utc=True, format="%Y-%m-%d %H:%M:%S"),
+            price=x["price"].apply(lambda x: Decimal(str(x))),
+        )
+    )
+    .resample("1h", on="date")
+    .median()
+    .sort_index()
+    .pipe(lambda x: x.loc[x.index.isin(period_dates), :])
+)
+price_resampled
+
+pd.merge(
+    price_resampled,
+    liquidity_index_resampled,
+    how="outer",
+    left_index=True,
+    right_index=True,
+)
+
+balance_history.join(liquidity_index_resampled, how="outer").join(
+    price_resampled, how="outer"
+)
+
+balance_history
+
 
 # balance
 # (Decimal(user_reserve["scaledATokenBalance"]) / Decimal(token_decimals)) * (

@@ -53,9 +53,7 @@ for asset in reserve_liquidity_index_histories:
     for record in reserve_liquidity_index_histories[asset]:
         liquidity_indexes[asset_checksummed].append(
             [
-                datetime.fromtimestamp(record["timestamp"], tz=timezone.utc).strftime(
-                    "%Y-%m-%d %H:%M:%S"
-                ),
+                record["timestamp"],
                 record["liquidityIndex"],
             ]
         )
@@ -82,9 +80,7 @@ for history_item in atoken_balance_histories:
         user_atoken_balance_histories[user_id] = []
     user_atoken_balance_histories[user_id].append(
         [
-            datetime.fromtimestamp(history_item["timestamp"], tz=timezone.utc).strftime(
-                "%Y-%m-%d %H:%M:%S"
-            ),
+            history_item["timestamp"],
             web3_client.to_checksum_address(
                 history_item["userReserve"]["reserve"]["underlyingAsset"]
             ),
