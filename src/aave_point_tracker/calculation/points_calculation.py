@@ -157,29 +157,26 @@ def interpolate_decimals(decimal_series: pd.DataFrame) -> pd.Series:
 
 
 liquidity_index_resampled = (
-    (
-        pd.DataFrame(liquidity_indexes[asset], columns=["date", "liquidity_index"])
-        .pipe(
-            lambda x: x.assign(
-                date=datetime.fromtimestamp(x["date"], tz=timezone.utc),
-                # date=pd.to_datetime(x["date"], utc=True, format="%Y-%m-%d %H:%M:%S"),
-                liquidity_index=x["liquidity_index"].apply(Decimal),
+    pd.DataFrame(liquidity_indexes[asset], columns=["date", "liquidity_index"])
+    .pipe(
+        lambda x: x.assign(
+            date=pd.to_datetime(x["date"], utc=True, unit="s"),
+            liquidity_index=x["liquidity_index"].apply(Decimal),
+        )
+    )
+    .pipe(
+        lambda x: x.loc[
+            (x["date"] >= pd.to_datetime(FIRST_DATE, utc=True, format="%Y-%m-%d"))
+            & (
+                x["date"]
+                <= pd.to_datetime(LAST_DATE, utc=True, format="%Y-%m-%d")
+                + pd.Timedelta(days=1)
             )
-        )
-        .pipe(
-            lambda x: x.loc[
-                (x["date"] >= pd.to_datetime(FIRST_DATE, utc=True, format="%Y-%m-%d"))
-                & (
-                    x["date"]
-                    <= pd.to_datetime(LAST_DATE, utc=True, format="%Y-%m-%d")
-                    + pd.Timedelta(days=1)
-                )
-            ]
-        )
-        .resample(
-            "1d",
-            on="date",
-        )
+        ]
+    )
+    .resample(
+        "1d",
+        on="date",
     )
     .median()
     .apply(interpolate_decimals)
