@@ -12,6 +12,8 @@ from aave_point_tracker.utils.utils import (
 )
 
 logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.DEBUG)
+
 load_dotenv()
 configs = load_configs()
 

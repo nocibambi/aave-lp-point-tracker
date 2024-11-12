@@ -2,26 +2,26 @@ import json
 import logging
 import os
 import time
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 
 import requests
 from dotenv import load_dotenv
 
 from aave_point_tracker.utils.utils import (
-    datetime_to_posix,
-    save_data,
     date_str_to_datetime,
+    datetime_to_posix,
     load_configs,
+    save_data,
 )
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.DEBUG)
 
 load_dotenv()
 configs = load_configs()
 
 FIRST_DATE: str = configs["first_date"]
 LAST_DATE: str = configs["last_date"]
-
-logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.DEBUG)
 
 
 baseurl = "https://api.coingecko.com/api/v3"
