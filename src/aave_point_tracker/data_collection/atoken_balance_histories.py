@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 import requests
 from dotenv import load_dotenv
@@ -25,7 +25,7 @@ query = """
   atokenBalanceHistoryItems(
     orderBy: timestamp
     orderDirection: asc
-    where: {timestamp_gte: $timestamp_gte}
+    where: {timestamp_gte: $timestamp_gte, timestamp_lt: $timestamp_lt}
   ) {
     scaledATokenBalance
     currentATokenBalance
@@ -43,9 +43,15 @@ query = """
     }
   }
 }"""
-query_parsed = subgraph_helper.format_query(query, "timestamp_gte")
-
 first_timestamp = datetime_to_posix(date_str_to_datetime(configs["first_date"]))
+last_timestamp = datetime_to_posix(
+    date_str_to_datetime(configs["last_date"]) + timedelta(days=1)
+)
+query_parsed = subgraph_helper.format_query(
+    query, "timestamp_gte", "timestamp_lt"
+).format(timestamp_gte=first_timestamp, timestamp_lt=last_timestamp)
+logger.debug(query_parsed)
+
 atoken_balance_histories = []
 while True:
     payload = {
