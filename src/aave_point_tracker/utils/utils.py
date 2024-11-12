@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 from enum import Enum, auto
 from importlib.resources import files
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 from dotenv import load_dotenv
 
@@ -44,7 +44,7 @@ def save_data(data_to_save: dict | list, filename: str, data_layer: str) -> None
         json.dump(data_to_save, f, indent=4)
 
 
-def load_data(filename: str, data_layer: str) -> dict | list:
+def load_data(filename: str, data_layer: str) -> Any:
     if data_layer not in DataLayer._member_names_:
         raise ValueError(
             f"Data layer must be one of {DataLayer._member_names_}, got {data_layer}"
