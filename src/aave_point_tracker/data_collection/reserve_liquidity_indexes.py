@@ -35,23 +35,28 @@ query = """{
     }
   }
 }"""
-query_parsed = subgraph_helper.format_query(query, "timestamp_gt", "timestamp_lte")
-
 first_date_posix = datetime_to_posix(
     date_str_to_datetime(configs["first_date"]), buffer="early"
 )
 last_date_posix = datetime_to_posix(
     date_str_to_datetime(configs["last_date"]) + timedelta(days=1), buffer="late"
 )
-
+query_parsed = query_parsed = subgraph_helper.format_query(
+    query, "timestamp_gt", "timestamp_lte"
+).format(
+    timestamp_gt=first_date_posix,
+    timestamp_lte=last_date_posix,
+)
+logger.debug(query_parsed)
 reserve_liquidity_index_histories: defaultdict = defaultdict(list)
 while True:
-    query_configured = query_parsed.format(
-        timestamp_gt=first_date_posix,
-        timestamp_lte=last_date_posix,
-    )
     payload = {
-        "query": query_configured,
+        "query": subgraph_helper.format_query(
+            query, "timestamp_gt", "timestamp_lte"
+        ).format(
+            timestamp_gt=first_date_posix,
+            timestamp_lte=last_date_posix,
+        ),
         "operationName": "Subgraphs",
         "variables": {},
     }
@@ -69,10 +74,14 @@ while True:
     if len(index_history_batch) < 100:
         break
     logger.debug(
-        first_date_posix,
-        last_date_posix,
-        len(index_history_batch),
-        sum(len(values) for values in reserve_liquidity_index_histories.values()),
+        {
+            "first_date_posix": first_date_posix,
+            "last_date_posix": last_date_posix,
+            "batch size": len(index_history_batch),
+            "total": sum(
+                len(values) for values in reserve_liquidity_index_histories.values()
+            ),
+        }
     )
     first_date_posix = index_history_batch[-1]["timestamp"]
 

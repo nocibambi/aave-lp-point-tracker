@@ -4,8 +4,11 @@ from decimal import Decimal, FloatOperation, getcontext
 import pandas as pd
 import pandera
 from web3 import Web3
-
+import logging
 from aave_point_tracker.utils.utils import load_configs, load_data
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.DEBUG)
 
 configs = load_configs()
 RAY_DECIMALS: int = configs["ray_decimals"]
@@ -37,7 +40,7 @@ def print_user_reserve_id(user_id, asset):
     user_reserve_id = (
         user_id + asset + configs["aave"]["ethereum_v3_main"]["pool_address_provider"]
     ).lower()
-    print(user_reserve_id)
+    logger.debug(user_reserve_id)
 
 
 user_id = "0xb7884a472Caeb66Fc65d1A77113dE9809D5DCA0f"

@@ -59,7 +59,7 @@ while True:
     if not starting_balances_batch:
         break
     starting_balances += starting_balances_batch
-    print({"starting_balances": len(starting_balances), "last_id": last_id})
+    logger.debug({"starting_balances": len(starting_balances), "last_id": last_id})
     last_id = starting_balances_batch[-1]["id"]
 
 save_data(starting_balances, "starting_balances", data_layer="raw")

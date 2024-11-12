@@ -1,10 +1,13 @@
 from datetime import datetime, timezone
 
 from web3 import Web3
-
+import logging
 from aave_point_tracker.utils.utils import load_data, save_data
 
 web3_client = Web3()
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.DEBUG)
 
 ########## LOAD DATA ##########
 
@@ -42,7 +45,9 @@ for starting_balance in starting_balances:
         token_id: str = web3_client.to_checksum_address(
             reserve["reserve"]["underlyingAsset"]
         )
-        print(len(user_starting_balances), user_id, token_id, scaled_atoken_balance)
+        logger.debug(
+            len(user_starting_balances), user_id, token_id, scaled_atoken_balance
+        )
         user_starting_balances[user_id].append([token_id, scaled_atoken_balance])
 save_data(user_starting_balances, "user_starting_balances", data_layer="prepared")
 
@@ -87,7 +92,12 @@ for history_item in atoken_balance_histories:
             history_item["scaledATokenBalance"],
         ]
     )
-    print(user_id, len(user_atoken_balance_histories[user_id]))
+    logger.debug(
+        {
+            "user_id": user_id,
+            "number of records": len(user_atoken_balance_histories[user_id]),
+        }
+    )
 save_data(
     user_atoken_balance_histories,
     "user_atoken_balance_histories",

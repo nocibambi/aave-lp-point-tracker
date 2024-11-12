@@ -49,7 +49,9 @@ first_timestamp = datetime_to_posix(date_str_to_datetime(configs["first_date"]))
 atoken_balance_histories = []
 while True:
     payload = {
-        "query": query_parsed.format(timestamp_gte=first_timestamp),
+        "query": subgraph_helper.format_query(
+            query, "timestamp_gte", "timestamp_lt"
+        ).format(timestamp_gte=first_timestamp, timestamp_lt=last_timestamp),
         "operationName": "Subgraphs",
         "variables": {},
     }
@@ -62,11 +64,13 @@ while True:
     if not atoken_balance_histories_batch:
         break
     atoken_balance_histories += atoken_balance_histories_batch
-    print(
-        datetime.fromtimestamp(first_timestamp, tz=timezone.utc).strftime(
-            "%Y-%m-%d %H:%M:%S"
-        ),
-        f"- {len(atoken_balance_histories)}",
+    logger.debug(
+        {
+            "from": datetime.fromtimestamp(first_timestamp, tz=timezone.utc).strftime(
+                "%Y-%m-%d %H:%M:%S"
+            ),
+            "collected": f"- {len(atoken_balance_histories)}",
+        }
     )
     first_timestamp = atoken_balance_histories_batch[-1]["timestamp"] + 1
 
