@@ -21,82 +21,14 @@ decimal_context.traps[FloatOperation] = True
 
 web3 = Web3()
 
-########## LOAD DATA ##########
-
-starting_balances: list[dict] = load_data("starting_balances", data_layer="raw")
-reserve_assets: list[dict] = load_data("reserve_assets", data_layer="raw")
-reserve_asset_prices: dict[str, list[dict]] = load_data("reserve_asset_prices", data_layer="raw"))
-reserve_liquidity_index_histories: dict[str, list[dict]] = load_data(
-    "reserve_liquidity_index_histories", data_layer="raw"
+# ######### LOAD DATA ##########
+user_starting_balances = load_data("user_starting_balances", data_layer="prepared")
+liquidity_indexes = load_data("liquidity_indexes", data_layer="prepared")
+asset_decimals = load_data("asset_decimals", data_layer="prepared")
+asset_prices = load_data("asset_prices", data_layer="prepared")
+user_atoken_balance_histories = load_data(
+    "user_atoken_balance_histories", data_layer="prepared"
 )
-atoken_balance_histories: list[dict] = load_data("atoken_balance_histories", data_layer="raw")
-aave_addresses = load_data("aave_addresses", data_layer="raw")
-
-########## PREPARE DATA ##########
-
-user_starting_balances: dict[str, list] = {}
-for starting_balance in starting_balances:
-    user_id: str = web3.to_checksum_address(starting_balance["id"])
-    if user_id in aave_addresses:
-        continue
-
-    for reserve in starting_balance["reserves"]:
-        if not reserve["aTokenBalanceHistory"]:
-            continue
-        scaled_atoken_balance = reserve["aTokenBalanceHistory"][0][
-            "scaledATokenBalance"
-        ]
-        if scaled_atoken_balance == "0":
-            continue
-        if user_id not in user_starting_balances:
-            user_starting_balances[user_id] = []
-        token_id: str = web3.to_checksum_address(reserve["reserve"]["underlyingAsset"])
-        print(len(user_starting_balances), user_id, token_id, scaled_atoken_balance)
-        user_starting_balances[user_id].append([token_id, scaled_atoken_balance])
-
-liquidity_indexes: dict[str, list] = {}
-for asset in reserve_liquidity_index_histories:
-    asset_checksummed = web3.to_checksum_address(asset)
-    liquidity_indexes[asset_checksummed] = []
-    for record in reserve_liquidity_index_histories[asset]:
-        liquidity_indexes[asset_checksummed].append(
-            [
-                datetime.fromtimestamp(record["timestamp"], tz=timezone.utc).strftime(
-                    "%Y-%m-%d %H:%M:%S"
-                ),
-                record["liquidityIndex"],
-            ]
-        )
-
-asset_decimals: dict[str, int] = {
-    web3.to_checksum_address(asset["underlyingAsset"]): asset["decimals"]
-    for asset in reserve_assets
-}
-
-asset_prices = {
-    web3.to_checksum_address(asset): prices
-    for asset, prices in reserve_asset_prices.items()
-}
-
-user_atoken_balance_histories: dict[str, list] = {}
-for history_item in atoken_balance_histories:
-    user_id = web3.to_checksum_address(history_item["userReserve"]["user"]["id"])
-    if user_id in aave_addresses:
-        continue
-    if user_id not in user_atoken_balance_histories:
-        user_atoken_balance_histories[user_id] = []
-    user_atoken_balance_histories[user_id].append(
-        [
-            datetime.fromtimestamp(history_item["timestamp"], tz=timezone.utc).strftime(
-                "%Y-%m-%d %H:%M:%S"
-            ),
-            web3.to_checksum_address(
-                history_item["userReserve"]["reserve"]["underlyingAsset"]
-            ),
-            history_item["scaledATokenBalance"],
-        ]
-    )
-    print(user_id, len(user_atoken_balance_histories[user_id]))
 
 ############################# USER CALCULATION #############################
 
