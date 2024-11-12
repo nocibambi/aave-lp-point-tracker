@@ -12,6 +12,7 @@ from aave_point_tracker.utils.utils import (
     datetime_to_posix,
     load_configs,
     save_data,
+    load_data,
 )
 
 logger = logging.getLogger(__name__)
@@ -26,8 +27,7 @@ LAST_DATE: str = configs["last_date"]
 
 baseurl = "https://api.coingecko.com/api/v3"
 api_key = os.environ["COINGECKO_API_KEY"]
-with open(f"{os.environ['DATA_PATH']}/reserve_assets.json") as f:
-    reserve_assets = json.load(f)
+reserve_assets = load_data("reserve_assets", data_layer="raw")
 
 
 network = "ethereum"
@@ -63,15 +63,7 @@ for reserve in reserve_assets:
         delay *= 2
         logger.debug(f"Delaying for {delay} seconds...")
 
-    prices = [
-        [
-            datetime.fromtimestamp(price[0] / 1000, tz=timezone.utc).strftime(
-                "%Y-%m-%d %H:%M:%S"
-            ),
-            price[1],
-        ]
-        for price in response.json()["prices"]
-    ]
+    prices = [[price[0], price[1]] for price in response.json()["prices"]]
     reserve_asset_prices[contract_address] = prices
 
 save_data(reserve_asset_prices, "reserve_asset_prices", data_layer="raw")
