@@ -10,8 +10,8 @@ from aave_point_tracker.utils.utils import (
     date_str_to_datetime,
     datetime_to_posix,
     load_configs,
-    save_data,
     load_data,
+    save_data,
 )
 
 logger = logging.getLogger(__name__)

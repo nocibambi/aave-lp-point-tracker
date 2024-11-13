@@ -1,10 +1,10 @@
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
-
-from pathlib import Path
 import json
 import os
+from pathlib import Path
+
 from dotenv import load_dotenv
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
 
 load_dotenv()
 
@@ -26,7 +26,7 @@ async def get_tvl(user_id: str):
     return TVLResponse(user_id=user_id, tvl=tvl)
 
 
-def get_tvl_values() -> dict[str, str]:
+def get_tvl_values() -> dict[str, float]:
     with open(Path(os.environ["DATA_PATH"], "calculated", "user_tvls.json"), "r") as f:
         user_tvls = json.load(f)
     return user_tvls

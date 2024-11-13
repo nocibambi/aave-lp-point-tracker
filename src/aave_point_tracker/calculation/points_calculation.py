@@ -1,12 +1,10 @@
-from datetime import timezone, datetime
+import logging
+from datetime import datetime, timezone
 from decimal import Decimal, FloatOperation, getcontext, localcontext
-import json
-from pathlib import Path
-import os
 
 import pandas as pd
 from web3 import Web3
-import logging
+
 from aave_point_tracker.utils.utils import load_configs, load_data
 
 logger = logging.getLogger(__name__)
@@ -30,24 +28,28 @@ decimal_context.traps[FloatOperation] = True
 web3 = Web3()
 
 # ######### LOAD DATASETS ##########
-user_starting_balances = load_data("user_starting_balances", data_layer="prepared")
-liquidity_indexes = load_data("liquidity_indexes", data_layer="prepared")
-asset_decimals = load_data("asset_decimals", data_layer="prepared")
-asset_prices = load_data("asset_prices", data_layer="prepared")
-user_atoken_balance_histories = load_data(
+user_starting_balances: dict[str, list] = load_data(
+    "user_starting_balances", data_layer="prepared"
+)
+liquidity_indexes: dict[str, list] = load_data(
+    "liquidity_indexes", data_layer="prepared"
+)
+asset_decimals: dict[str, int] = load_data("asset_decimals", data_layer="prepared")
+asset_prices: dict[str, list] = load_data("asset_prices", data_layer="prepared")
+user_atoken_balance_histories: dict[str, list] = load_data(
     "user_atoken_balance_histories", data_layer="prepared"
 )
 
 
 # ########## METHODS ##########
-def day_fraction(timestamp: float) -> float:
+def _day_fraction(timestamp: float) -> float:
     dt = datetime.fromtimestamp(int(timestamp), tz=timezone.utc)
     return (dt - datetime.combine(dt, dt.min.time(), tzinfo=dt.tzinfo)).seconds / (
         24 * 60 * 60
     )
 
 
-def collect_balance_history(
+def _collect_balance_history(
     starting_balances: list, balance_histories: list, asset: str, starting_assets: set
 ) -> pd.DataFrame:
     balance_history = pd.DataFrame(
@@ -72,7 +74,7 @@ def collect_balance_history(
                         {
                             "date": datetime.fromtimestamp(record[0], tz=timezone.utc),
                             "balance": Decimal(record[2]),
-                            "day_fraction": day_fraction(record[0]),
+                            "day_fraction": _day_fraction(record[0]),
                         }
                         for record in list(
                             filter(lambda record: record[1] == asset, balance_histories)
@@ -113,7 +115,7 @@ def collect_balance_history(
     return balance_history
 
 
-def median_decimals(index_history: pd.Series) -> Decimal | None:
+def _median_decimals(index_history: pd.Series) -> Decimal | None:
     index_history = index_history.sort_index()
     n_records = len(index_history)
 
@@ -132,7 +134,7 @@ def median_decimals(index_history: pd.Series) -> Decimal | None:
         return Decimal(index_history.iloc[(n_records + 1) // 2 - 1])
 
 
-def interpolate_decimals(decimal_series: pd.Series) -> pd.Series:
+def _interpolate_decimals(decimal_series: pd.Series) -> pd.Series:
     decimal_series = decimal_series.sort_index()
     indexes_w_nan = decimal_series[decimal_series.isna().values].index
     indexes_w_vals = decimal_series[~decimal_series.isna().values].index
@@ -161,7 +163,7 @@ def interpolate_decimals(decimal_series: pd.Series) -> pd.Series:
     return decimal_series
 
 
-def resample_liquidity_index(liquidity_indexes, asset) -> pd.DataFrame:
+def _resample_liquidity_index(liquidity_indexes, asset) -> pd.DataFrame:
     return (
         pd.DataFrame(liquidity_indexes[asset], columns=["date", "liquidity_index"])
         .pipe(
@@ -184,15 +186,15 @@ def resample_liquidity_index(liquidity_indexes, asset) -> pd.DataFrame:
             "1d",
             on="date",
         )
-        .apply(median_decimals)
-        .apply(interpolate_decimals)
+        .apply(_median_decimals)
+        .apply(_interpolate_decimals)
         .join(pd.DataFrame(index=PERIOD_DATES), how="outer")
         .bfill()
         .ffill()
     )
 
 
-def resample_price(asset_prices, asset) -> pd.DataFrame:
+def _resample_price(asset_prices: dict, asset: str) -> pd.DataFrame:
     return (
         pd.DataFrame(asset_prices[asset], columns=["date", "price"])
         .pipe(
@@ -202,7 +204,7 @@ def resample_price(asset_prices, asset) -> pd.DataFrame:
             )
         )
         .resample("1h", on="date")
-        .apply(median_decimals)
+        .apply(_median_decimals)
         .sort_index()
         .pipe(lambda x: x.loc[x.index.isin(PERIOD_DATES), :])
         .join(pd.DataFrame(index=PERIOD_DATES), how="outer")
@@ -211,7 +213,7 @@ def resample_price(asset_prices, asset) -> pd.DataFrame:
     )
 
 
-def get_build_reserve_history(
+def _get_build_reserve_history(
     balance_history, liquidity_index_resampled, price_resampled
 ) -> pd.DataFrame:
     return (
@@ -236,7 +238,7 @@ def get_build_reserve_history(
     )
 
 
-def get_user_reserve_tvl(reserve_history) -> Decimal:
+def _get_user_reserve_tvl(reserve_history, asset) -> Decimal:
     with localcontext(prec=42) as _:
         reserve_points = reserve_history.pipe(
             lambda x: x["balance"]
@@ -251,64 +253,58 @@ def get_user_reserve_tvl(reserve_history) -> Decimal:
 
 
 # ########## USER CALCULATION ##########
-user_ids = user_starting_balances.keys() | user_atoken_balance_histories.keys()
-user_tvls = {}
-len(user_ids)
 
-for i, user_id in enumerate(user_ids, start=1):
-    if user_id in user_tvls:
-        continue
-    try:
-        starting_balances: list[list] = user_starting_balances[user_id]
-        starting_assets = set([balance[0] for balance in starting_balances])
-    except KeyError:
-        starting_balances = []
-        starting_assets = set()
 
-    try:
-        balance_histories: list[list[str]] = user_atoken_balance_histories[user_id]
-        updated_assets = set([record[1] for record in balance_histories])
-    except KeyError:
-        balance_histories = []
-        updated_assets = set()
+def calculate_user_tvls() -> dict[str, float]:
+    user_ids = user_starting_balances.keys() | user_atoken_balance_histories.keys()
+    user_tvls = {}
 
-    assets_held: set = starting_assets | updated_assets
-
-    user_tvl = Decimal(0)
-    for asset in assets_held:
-        balance_history = collect_balance_history(
-            starting_balances=starting_balances,
-            balance_histories=balance_histories,
-            asset=asset,
-            starting_assets=starting_assets,
-        )
-        try:
-            liquidity_index_resampled = resample_liquidity_index(
-                liquidity_indexes=liquidity_indexes, asset=asset
-            )
-        except KeyError:
-            logger.debug(f"Failed to resample liquidity index for {asset}")
+    for i, user_id in enumerate(user_ids, start=1):
+        if user_id in user_tvls:
             continue
+        try:
+            starting_balances: list[list] = user_starting_balances[user_id]
+            starting_assets = set([balance[0] for balance in starting_balances])
+        except KeyError:
+            starting_balances = []
+            starting_assets = set()
 
-        price_resampled = resample_price(asset_prices=asset_prices, asset=asset)
-        reserve_history = get_build_reserve_history(
-            balance_history=balance_history,
-            liquidity_index_resampled=liquidity_index_resampled,
-            price_resampled=price_resampled,
-        )
-        reserve_tvl = get_user_reserve_tvl(reserve_history=reserve_history)
-        print(asset, reserve_tvl)
-        user_tvl += reserve_tvl
-    user_tvls[user_id] = str(user_tvl)
-    print(i, user_id, user_tvl)
+        try:
+            balance_histories: list[list[str]] = user_atoken_balance_histories[user_id]
+            updated_assets = set([record[1] for record in balance_histories])
+        except KeyError:
+            balance_histories = []
+            updated_assets = set()
 
-reserve_history
+        assets_held: set = starting_assets | updated_assets
 
-{user: str(tvl) for user, tvl in user_tvls.items()}
+        user_tvl = Decimal(0)
+        for asset in assets_held:
+            balance_history = _collect_balance_history(
+                starting_balances=starting_balances,
+                balance_histories=balance_histories,
+                asset=asset,
+                starting_assets=starting_assets,
+            )
+            try:
+                liquidity_index_resampled = _resample_liquidity_index(
+                    liquidity_indexes=liquidity_indexes, asset=asset
+                )
+            except KeyError:
+                logger.debug(f"Failed to resample liquidity index for {asset}")
+                continue
 
+            price_resampled = _resample_price(asset_prices=asset_prices, asset=asset)
+            reserve_history = _get_build_reserve_history(
+                balance_history=balance_history,
+                liquidity_index_resampled=liquidity_index_resampled,
+                price_resampled=price_resampled,
+            )
+            reserve_tvl = _get_user_reserve_tvl(
+                reserve_history=reserve_history, asset=asset
+            )
+            user_tvl += reserve_tvl
+        user_tvls[user_id] = float(user_tvl)
+        logger.debug(f"{i}. {user_id}: {user_tvl}")
 
-os.makedirs(Path(os.environ["DATA_PATH"], "calculated"), exist_ok=True)
-
-# configs = load_configs()
-with open(Path(os.environ["DATA_PATH"], "calculated", "user_tvls.json"), "w") as f:
-    json.dump(user_tvls, f)
+    return user_tvls

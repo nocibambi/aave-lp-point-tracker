@@ -1,5 +1,7 @@
-from web3 import Web3
 import logging
+
+from web3 import Web3
+
 from aave_point_tracker.utils.utils import load_data, save_data
 
 web3_client = Web3()

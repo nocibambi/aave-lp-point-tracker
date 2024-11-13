@@ -1,5 +1,7 @@
-import requests
 import logging
+
+import requests
+
 from aave_point_tracker.utils.utils import save_data
 
 logger = logging.getLogger(__name__)

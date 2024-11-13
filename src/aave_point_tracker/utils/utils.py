@@ -14,6 +14,7 @@ load_dotenv()
 class DataLayer(Enum):
     raw = auto()
     prepared = auto()
+    calculated = auto()
 
 
 vars(DataLayer)

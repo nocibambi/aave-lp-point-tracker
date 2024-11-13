@@ -1,7 +1,8 @@
-from pandas import Timestamp, DataFrame
 from decimal import Decimal
 
-from aave_point_tracker.calculation.points_calculation import get_user_reserve_tvl
+from pandas import DataFrame, Timestamp
+
+from aave_point_tracker.calculation.points_calculation import _get_user_reserve_tvl
 
 sample_data = {
     "balance": {
@@ -56,6 +57,6 @@ sample_data = {
 
 
 def test_get_user_reserve_tvl():
-    assert get_user_reserve_tvl(DataFrame(sample_data)) == Decimal(
+    assert _get_user_reserve_tvl(DataFrame(sample_data)) == Decimal(
         "4054545.287340917089598411247"
     )
