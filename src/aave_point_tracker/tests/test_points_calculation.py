@@ -57,6 +57,12 @@ sample_data = {
 
 
 def test_get_user_reserve_tvl():
+    """
+    Test _get_user_reserve_tvl function.
+
+    Test case: asset is AAVE, reserve history is a DataFrame of sample data.
+    Expected result: Decimal("4054545.287340917089598411247")
+    """
     asset = "0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9"  # AAVE
     assert _get_user_reserve_tvl(
         reserve_history=DataFrame(sample_data), asset=asset

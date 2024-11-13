@@ -43,6 +43,12 @@ user_atoken_balance_histories: dict[str, list] = load_data(
 
 # ########## METHODS ##########
 def _day_fraction(timestamp: float) -> float:
+    """
+    Given a timestamp in seconds, returns the fraction of the day that has elapsed at the given timestamp.
+
+    :param timestamp: The timestamp in seconds.
+    :return: The fraction of the day that has elapsed, as a float between 0 and 1.
+    """
     dt = datetime.fromtimestamp(int(timestamp), tz=timezone.utc)
     return (dt - datetime.combine(dt, dt.min.time(), tzinfo=dt.tzinfo)).seconds / (
         24 * 60 * 60
@@ -52,6 +58,31 @@ def _day_fraction(timestamp: float) -> float:
 def _collect_balance_history(
     starting_balances: list, balance_histories: list, asset: str, starting_assets: set
 ) -> pd.DataFrame:
+    """
+    Collect and prepare the balance history for a specific asset.
+
+    Constructs a DataFrame representing the history of balances
+    for a given asset, combining starting balances and balance histories. It
+    includes the date, balance, and day fraction for each relevant record,
+    and converts the balance to a Decimal type.
+
+    Args:
+        starting_balances (list): A list of tuples containing starting balance
+            information, where each tuple consists of an asset identifier and
+            its corresponding starting balance.
+        balance_histories (list): A list of records representing balance history
+            data, where each record includes a timestamp, asset identifier, and
+            balance.
+        asset (str): The asset identifier for which the balance history is being
+            collected.
+        starting_assets (set): A set of asset identifiers that are considered as
+            starting assets.
+
+    Returns:
+        pd.DataFrame: A DataFrame with the balance history for the specified
+        asset, indexed by date, and including columns for 'balance' and
+        'day_fraction'.
+    """
     balance_history = pd.DataFrame(
         data=[
             {
@@ -116,6 +147,9 @@ def _collect_balance_history(
 
 
 def _median_decimals(index_history: pd.Series) -> Decimal | None:
+    """
+    Compute the median of the given index history, returning `None` if it is empty.
+    """
     index_history = index_history.sort_index()
     n_records = len(index_history)
 
@@ -135,6 +169,27 @@ def _median_decimals(index_history: pd.Series) -> Decimal | None:
 
 
 def _interpolate_decimals(decimal_series: pd.Series) -> pd.Series:
+    """
+    Linearly interpolate missing values in a Pandas Series of Decimals.
+
+    This function takes a Pandas Series containing Decimal numbers and interpolates
+    missing values (NaNs) by performing linear interpolation between the closest
+    non-NaN values before and after each NaN. The interpolation is done based on
+    the time difference between the indices of the non-NaN values.
+
+    Args:
+        decimal_series (pd.Series): A Pandas Series with a datetime index, containing
+                                    Decimal values with potential NaNs.
+
+    Returns:
+        pd.Series: A Pandas Series with the same index as `decimal_series` where
+                   all NaN values have been filled through linear interpolation.
+
+    Raises:
+        ValueError: If the time difference between indices is not an integer number
+                    of hours, or if the time difference from a non-NaN value to a NaN
+                    index is not an integer number of hours.
+    """
     decimal_series = decimal_series.sort_index()
     indexes_w_nan = decimal_series[decimal_series.isna().values].index
     indexes_w_vals = decimal_series[~decimal_series.isna().values].index
@@ -164,6 +219,22 @@ def _interpolate_decimals(decimal_series: pd.Series) -> pd.Series:
 
 
 def _resample_liquidity_index(liquidity_indexes, asset) -> pd.DataFrame:
+    """
+    Resample the liquidity index data for a given asset on a daily basis.
+
+    Resamples the liquidity index data to a daily frequency. The data is filtered to
+    the specified range, and missing values are interpolated. The resulting DataFrame is
+    backfilled and forward-filled to ensure continuity.
+
+    Args:
+        liquidity_indexes (dict): A dictionary containing liquidity index data with timestamps.
+        asset (str): The identifier of the asset to resample the liquidity index data for.
+
+    Returns:
+        pd.DataFrame: A DataFrame containing the resampled liquidity index data with 'date' as
+                      the index and 'liquidity_index' as the column, adjusted to the specified
+                      frequency and date range.
+    """
     return (
         pd.DataFrame(liquidity_indexes[asset], columns=["date", "liquidity_index"])
         .pipe(
@@ -195,6 +266,21 @@ def _resample_liquidity_index(liquidity_indexes, asset) -> pd.DataFrame:
 
 
 def _resample_price(asset_prices: dict, asset: str) -> pd.DataFrame:
+    """
+    Resample the price data for a given asset on an hourly basis.
+
+    Resamples the price data to an hourly frequency, computes the median decimals,
+    and then filteres to the specified dates.
+    Missing values in the resulting DataFrame are backfilled and forward-filled to ensure continuity.
+
+    Args:
+        asset_prices (dict): A dictionary containing asset price data with timestamps.
+        asset (str): The identifier of the asset to resample the price data for.
+
+    Returns:
+        pd.DataFrame: A DataFrame containing the resampled price data with the 'date' as the index
+                      and 'price' as the column, adjusted to the specified frequency and date range.
+    """
     return (
         pd.DataFrame(asset_prices[asset], columns=["date", "price"])
         .pipe(
@@ -216,6 +302,36 @@ def _resample_price(asset_prices: dict, asset: str) -> pd.DataFrame:
 def _get_build_reserve_history(
     balance_history, liquidity_index_resampled, price_resampled
 ) -> pd.DataFrame:
+    """
+    Combine the balance history with the resampled liquidity index and price data
+    and build the reserve history for a user.
+
+    The balance history is joined with the resampled liquidity index and price data
+    using an outer join. The resulting dataframe is then modified to fill in any
+    missing values for the balance, liquidity index, and price.
+
+    Day fraction is calculated by taking the difference of the day fraction column and
+    then shifting the result up by one row. The result is then modified to be a
+    positive number between 0 and 1 by taking the absolute value and then subtracting
+    the result from 1 if the result is greater than 1. The result is then converted to a
+    Decimal object.
+
+    The last row of the dataframe is then dropped.
+
+    Parameters
+    ----------
+    balance_history : pd.DataFrame
+        The balance history for the user.
+    liquidity_index_resampled : pd.DataFrame
+        The resampled liquidity index data for the reserve.
+    price_resampled : pd.DataFrame
+        The resampled price data for the reserve.
+
+    Returns
+    -------
+    pd.DataFrame
+        The reserve history for the user.
+    """
     return (
         balance_history.join(liquidity_index_resampled, how="outer")
         .join(price_resampled, how="outer")
@@ -239,6 +355,23 @@ def _get_build_reserve_history(
 
 
 def _get_user_reserve_tvl(reserve_history, asset) -> Decimal:
+    """
+    Calculate the total value locked (TVL) for a user's reserve.
+
+    This function computes the TVL for a specific asset by processing the reserve
+    history DataFrame. It takes into account the user's balance, the liquidity
+    index, the asset price, and the day fraction.
+
+    Args:
+        reserve_history (pd.DataFrame): A DataFrame containing the reserve history
+            with columns 'balance', 'day_fraction', 'liquidity_index', and 'price'.
+        asset (str): The asset identifier used to access asset-specific details
+            like decimals.
+
+    Returns:
+        Decimal: The calculated TVL for the user's reserve in the specified asset.
+    """
+    print(asset_decimals.keys())
     with localcontext(prec=42) as _:
         reserve_points = reserve_history.pipe(
             lambda x: x["balance"]
@@ -256,6 +389,14 @@ def _get_user_reserve_tvl(reserve_history, asset) -> Decimal:
 
 
 def calculate_user_tvls() -> dict[str, float]:
+    """
+    Calculate total value locked (TVL) for each user.
+
+    Iterate through all users, collecting their starting balances and aToken balance histories.
+    For each asset held by a user, resample the liquidity index and price data.
+    Calculate the TVL for each reserve and sum them to get the final TVL for the user.
+    """
+
     user_ids = user_starting_balances.keys() | user_atoken_balance_histories.keys()
     user_tvls = {}
 

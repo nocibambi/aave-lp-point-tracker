@@ -111,6 +111,15 @@ def _prepare_user_atoken_balance_histories() -> None:
 
 
 def prepare_datasets() -> None:
+    """
+    Prepares and processes datasets required for TVL calculation.
+
+    This function orchestrates the preparation of various datasets
+    used in the TVL calculation.
+
+    Each helper function loads raw data, processes it, and saves the prepared
+    data for use in further calculations.
+    """
     _prepare_starting_balances()
     _prepare_reserve_liquidity_indexes()
     _prepare_asset_decimals()
