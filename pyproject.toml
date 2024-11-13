@@ -11,10 +11,11 @@ readme = "README.md"
 dynamic = ["version"]
 
 dependencies = [
-    "python-dotenv==1.0.1",
+    "fastapi==0.115.5",
     "requests==2.32.3",
     "pandas==2.2.3",
     "pandera[mypy]==0.20.4",
+    "python-dotenv==1.0.1",
     "web3==7.5.0",
 ]
 
@@ -26,6 +27,7 @@ dev = [
     "mypy==1.13.0",
     "isort==5.13.2",
     "flake8==7.1.1",
+    "pytest==8.3.3",
 ]
 
 [tool.mypy]
