@@ -1,4 +1,3 @@
-import pytest
 from pandas import Timestamp, DataFrame
 from decimal import Decimal
 
