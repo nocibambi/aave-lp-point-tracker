@@ -371,7 +371,6 @@ def _get_user_reserve_tvl(reserve_history, asset) -> Decimal:
     Returns:
         Decimal: The calculated TVL for the user's reserve in the specified asset.
     """
-    print(asset_decimals.keys())
     with localcontext(prec=42) as _:
         reserve_points = reserve_history.pipe(
             lambda x: x["balance"]
