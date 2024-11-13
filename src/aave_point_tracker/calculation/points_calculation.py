@@ -49,7 +49,7 @@ def day_fraction(timestamp: float) -> float:
 
 def collect_balance_history(
     starting_balances: list, balance_histories: list, asset: str, starting_assets: set
-):
+) -> pd.DataFrame:
     balance_history = pd.DataFrame(
         data=[
             {
@@ -161,7 +161,7 @@ def interpolate_decimals(decimal_series: pd.Series) -> pd.Series:
     return decimal_series
 
 
-def resample_liquidity_index(liquidity_indexes, asset):
+def resample_liquidity_index(liquidity_indexes, asset) -> pd.DataFrame:
     return (
         pd.DataFrame(liquidity_indexes[asset], columns=["date", "liquidity_index"])
         .pipe(
@@ -192,7 +192,7 @@ def resample_liquidity_index(liquidity_indexes, asset):
     )
 
 
-def resample_price(asset_prices, asset):
+def resample_price(asset_prices, asset) -> pd.DataFrame:
     return (
         pd.DataFrame(asset_prices[asset], columns=["date", "price"])
         .pipe(
@@ -213,7 +213,7 @@ def resample_price(asset_prices, asset):
 
 def get_build_reserve_history(
     balance_history, liquidity_index_resampled, price_resampled
-):
+) -> pd.DataFrame:
     return (
         balance_history.join(liquidity_index_resampled, how="outer")
         .join(price_resampled, how="outer")
@@ -236,7 +236,7 @@ def get_build_reserve_history(
     )
 
 
-def get_user_reserve_tvl(reserve_history):
+def get_user_reserve_tvl(reserve_history) -> Decimal:
     with localcontext(prec=42) as _:
         reserve_points = reserve_history.pipe(
             lambda x: x["balance"]
