@@ -45,7 +45,7 @@ query = """
 }"""
 
 
-def fetch_staring_balances() -> None:
+def fetch_starting_balances() -> None:
     query_parsed = subgraph.format_query(query, "id_gt", "timestamp_lte")
 
     last_date_posix = datetime_to_posix(date_str_to_datetime(configs["first_date"]))
