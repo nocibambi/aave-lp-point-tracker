@@ -1,4 +1,4 @@
-PACKAGE = aave-point-tracker
+PACKAGE = aave_point_tracker
 RUNINENV = . .venv/bin/activate
 CHECKENV = python -c \
 	"import sys ; sys.exit(0) if sys.prefix == sys.base_prefix else sys.exit(1)" \
@@ -34,6 +34,10 @@ run:
 run-dev:
 	make test
 	make run
+
+.PHONY: server
+server:
+	$(CHECKENV) && fastapi run src/$(PACKAGE)/app.py
 
 .PHONY: test
 test:
