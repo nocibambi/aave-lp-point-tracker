@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timezone, timedelta
+from datetime import timedelta
 
 import requests
 from dotenv import load_dotenv
@@ -43,33 +43,36 @@ query = """
     }
   }
 }"""
-first_timestamp = datetime_to_posix(date_str_to_datetime(configs["first_date"]))
-last_timestamp = datetime_to_posix(
-    date_str_to_datetime(configs["last_date"]) + timedelta(days=1)
-)
-query_parsed = subgraph_helper.format_query(
-    query, "timestamp_gte", "timestamp_lt"
-).format(timestamp_gte=first_timestamp, timestamp_lt=last_timestamp)
-logger.debug(query_parsed)
 
-atoken_balance_histories = []
-while True:
-    payload = {
-        "query": subgraph_helper.format_query(
-            query, "timestamp_gte", "timestamp_lt"
-        ).format(timestamp_gte=first_timestamp, timestamp_lt=last_timestamp),
-        "operationName": "Subgraphs",
-        "variables": {},
-    }
-    response = requests.post(
-        subgraph_helper.url, json=payload, headers=subgraph_helper.headers
+
+def fetch_atoken_balance_histories() -> None:
+    first_timestamp = datetime_to_posix(date_str_to_datetime(configs["first_date"]))
+    last_timestamp = datetime_to_posix(
+        date_str_to_datetime(configs["last_date"]) + timedelta(days=1)
     )
-    atoken_balance_histories_batch = response.json()["data"][
-        "atokenBalanceHistoryItems"
-    ]
-    if not atoken_balance_histories_batch:
-        break
-    atoken_balance_histories += atoken_balance_histories_batch
-    first_timestamp = atoken_balance_histories_batch[-1]["timestamp"] + 1
-logger.debug({"collected": f"- {len(atoken_balance_histories)}"})
-save_data(atoken_balance_histories, "atoken_balance_histories", data_layer="raw")
+    query_parsed = subgraph_helper.format_query(
+        query, "timestamp_gte", "timestamp_lt"
+    ).format(timestamp_gte=first_timestamp, timestamp_lt=last_timestamp)
+    logger.debug(query_parsed)
+
+    atoken_balance_histories = []
+    while True:
+        payload = {
+            "query": subgraph_helper.format_query(
+                query, "timestamp_gte", "timestamp_lt"
+            ).format(timestamp_gte=first_timestamp, timestamp_lt=last_timestamp),
+            "operationName": "Subgraphs",
+            "variables": {},
+        }
+        response = requests.post(
+            subgraph_helper.url, json=payload, headers=subgraph_helper.headers
+        )
+        atoken_balance_histories_batch = response.json()["data"][
+            "atokenBalanceHistoryItems"
+        ]
+        if not atoken_balance_histories_batch:
+            break
+        atoken_balance_histories += atoken_balance_histories_batch
+        first_timestamp = atoken_balance_histories_batch[-1]["timestamp"] + 1
+    logger.debug({"collected": f"- {len(atoken_balance_histories)}"})
+    save_data(atoken_balance_histories, "atoken_balance_histories", data_layer="raw")
