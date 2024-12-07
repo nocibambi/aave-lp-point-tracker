@@ -16,39 +16,43 @@ python >=3.13
 - python-dotenv==1.0.1
 - web3==7.5.0
 
-### Environment setup
+### Environment variables
 
-You can set up the environment with the following command:
+The ETL requires CoinGecko and TheGraph API token access keys.
+
+Rename the `.env.sample` file to `.env` and fill out with the required path and api token information.
+
+### Package installation
+
+Setup the environment with the following command:
 
 ```shell
-> make setup
+make setup
 ```
+
+### ETL pipeline
+
+Start the ETL pipeline with the following command:
+
+```shell
+make run
+```
+
+This pull all the necessary data files and calculate the points for the depositors. Takes around two hours in its current state.
 
 ### Start the API server
 
 Start the server:
 
 ```shell
-> make server
+make server
 ```
 
 Test the API at the following endpoint: <http://0.0.0.0:8000/tvl/{user_id}>
 
-Example: `http://0.0.0.0:8000/tvl/0x6C53339048AE6B7de97440a38DF3164B4f456650`
+Example: <http://0.0.0.0:8000/tvl/0x6C53339048AE6B7de97440a38DF3164B4f456650>
 
 Can also access it via the docs page: <http://0.0.0.0:8000/docs#/default/get_tvl_tvl__user_id__get>
-
-### Running the ETL pipeline
-
-The API does not require further data or processing to work. The files in `data` contain all the raw data downloaded, prepared, and calculated for the TVL score.
-
-Still, you can rerun the whole process with the following command:
-
-```shell
-> make run
-```
-
-This will rewrite all the data files and will take around two hours in its current state.
 
 ## ETL Overview
 
@@ -62,7 +66,7 @@ For each reserve and for each day within the examined period (over the month of 
 
 `scaled balance` x `liquidity index` x `market price` x `day fraction`
 
-A user's final TVL is the sum of their daily TVL in all their reserves.
+A user's final TVL is the sum of their daily TVLs over all their reserves.
 
 ### Possible Improvement & Extensions
 
